@@ -4,28 +4,22 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/ranson21/ranor-common/pkg/logger"
 	"go.uber.org/zap"
 )
 
-func Logger(log logger.Logger) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			start := time.Now()
-
-			// Wrap ResponseWriter to capture status code
-			wrapped := &responseWriter{ResponseWriter: w, status: http.StatusOK}
-
-			next.ServeHTTP(wrapped, r)
-
-			log.Info("Incoming request",
-				zap.String("method", r.Method),
-				zap.String("path", r.URL.Path),
-				zap.String("remote_addr", r.RemoteAddr),
-				zap.Int("status", wrapped.status),
-				zap.Duration("latency", time.Since(start)),
-			)
-		})
+func Logger(log logger.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		start := time.Now()
+		c.Next()
+		log.Info("Incoming request",
+			zap.String("method", c.Request.Method),
+			zap.String("path", c.Request.URL.Path),
+			zap.String("remote_addr", c.ClientIP()),
+			zap.Int("status", c.Writer.Status()),
+			zap.Duration("latency", time.Since(start)),
+		)
 	}
 }
 

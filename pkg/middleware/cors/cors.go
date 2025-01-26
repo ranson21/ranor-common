@@ -3,6 +3,8 @@ package cors
 import (
 	"net/http"
 	"strconv"
+
+	"github.com/gin-gonic/gin"
 )
 
 type CORSConfig struct {
@@ -21,32 +23,27 @@ func DefaultCORSConfig() *CORSConfig {
 	}
 }
 
-func CORS(config *CORSConfig) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			origin := r.Header.Get("Origin")
+func CORS(config *CORSConfig) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		origin := c.Request.Header.Get("Origin")
 
-			if r.Method == "OPTIONS" {
-				w.Header().Set("Access-Control-Allow-Methods",
-					joinStrings(config.AllowedMethods))
-				w.Header().Set("Access-Control-Allow-Headers",
-					joinStrings(config.AllowedHeaders))
-				w.Header().Set("Access-Control-Max-Age",
-					strconv.Itoa(config.MaxAge))
-			}
+		if c.Request.Method == "OPTIONS" {
+			c.Writer.Header().Set("Access-Control-Allow-Methods", joinStrings(config.AllowedMethods))
+			c.Writer.Header().Set("Access-Control-Allow-Headers", joinStrings(config.AllowedHeaders))
+			c.Writer.Header().Set("Access-Control-Max-Age", strconv.Itoa(config.MaxAge))
+		}
 
-			w.Header().Set("Access-Control-Allow-Origin", origin)
-			w.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 
-			if r.Method == "OPTIONS" {
-				return
-			}
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
 
-			next.ServeHTTP(w, r)
-		})
+		c.Next()
 	}
 }
-
 func joinStrings(strings []string) string {
 	if len(strings) == 0 {
 		return ""

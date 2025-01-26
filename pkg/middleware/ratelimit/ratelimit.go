@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
 )
 
@@ -54,12 +55,13 @@ func (rl *RateLimiter) getVisitor(ip string) *rate.Limiter {
 	return v.limiter
 }
 
-func (rl *RateLimiter) RateLimit(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !rl.getVisitor(r.RemoteAddr).Allow() {
-			http.Error(w, "Rate limit exceeded", http.StatusTooManyRequests)
+func (rl *RateLimiter) RateLimit() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !rl.getVisitor(c.ClientIP()).Allow() {
+			c.JSON(http.StatusTooManyRequests, gin.H{"error": "Rate limit exceeded"})
+			c.Abort()
 			return
 		}
-		next.ServeHTTP(w, r)
-	})
+		c.Next()
+	}
 }
